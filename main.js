@@ -12,10 +12,11 @@ let win = null;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 100,
-    height: 300,
+    width: 800,
+    height: 1440,
     alwaysOnTop: true,
     transparent: true,
+    // frame: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
@@ -42,25 +43,25 @@ app.on("window-all-closed", () => {
 });
 
 ipcMain.on("screenshot", (event, arg) => {
-  desktopCapturer
-    .getSources({ types: ["window", "screen"] })
-    .then(async (sources) => {
-      for (const source of sources) {
-        console.log(source);
-        if (source.name === "Tout l'écran") {
-          win.webContents.send("SET_SOURCE", source.id);
-          return;
-        }
+  //Removed window, and left only screen
+  desktopCapturer.getSources({ types: ["screen"] }).then(async (sources) => {
+    for (const source of sources) {
+      console.log(source);
+      if (source.name === "Screen 1") {
+        win.webContents.send("SET_SOURCE", source.id);
+        return;
       }
-    });
+    }
+  });
 });
 
-ipcMain.on("save-image", (event, imageData) => {
+/* ipcMain.on("save-image", (event, imageData) => {
   // Show a save dialog
   dialog
     .showSaveDialog(win, {
-      defaultPath: "saved-image.jpg",
+      defaultPath: "S:/AI-SCREENSHOT/saved-image.jpg",
       filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "gif"] }],
+      promptToCreate: true,
     })
     .then((result) => {
       // result.filePath will contain the path selected by the user
@@ -78,4 +79,19 @@ ipcMain.on("save-image", (event, imageData) => {
         });
       }
     });
+}); */
+ipcMain.on("save-image", (event, imageData) => {
+  const base64Data = imageData.replace(/^data:image\/png;base64,/, "");
+  fs.writeFile(
+    "S:/AI-SCREENSHOT/saved-image.jpg",
+    base64Data,
+    "base64",
+    (err) => {
+      if (err) {
+        console.error("Error saving image:", err);
+      } else {
+        console.log("Image saved successfully!");
+      }
+    }
+  );
 });
