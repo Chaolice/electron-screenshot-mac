@@ -12,11 +12,14 @@ let win = null;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 800,
-    height: 1440,
+    x: 2440,
+    y: 20,
+    width: 100,
+    height: 300,
     alwaysOnTop: true,
     transparent: true,
-    // frame: false,
+    frame: false,
+    titleBarStyle: "hidden",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
