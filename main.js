@@ -85,16 +85,17 @@ ipcMain.on("screenshot", (event, arg) => {
 }); */
 ipcMain.on("save-image", (event, imageData) => {
   const base64Data = imageData.replace(/^data:image\/png;base64,/, "");
-  fs.writeFile(
-    "S:/AI-SCREENSHOT/saved-image.jpg",
-    base64Data,
-    "base64",
-    (err) => {
-      if (err) {
-        console.error("Error saving image:", err);
-      } else {
-        console.log("Image saved successfully!");
-      }
+
+  // Generate a timestamp to make each file name unique
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+  const fileName = `S:/AI-SCREENSHOT/saved-image-${timestamp}.jpg`;
+
+  fs.writeFile(fileName, base64Data, "base64", (err) => {
+    if (err) {
+      console.error("Error saving image:", err);
+    } else {
+      console.log("Image saved successfully:", fileName);
     }
-  );
+  });
 });
