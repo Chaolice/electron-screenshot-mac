@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "electron": "^27.1.2",
+    "electron-fetch": "^1.9.1",
     "electron-screenshots": "^0.5.26"
   }
 }

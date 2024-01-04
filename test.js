@@ -1,7 +1,4 @@
-const fetch = require("electron-fetch").default;
-
-let win = null;
-let secondWin = null;
+/* const fetch = require("electron-fetch");
 
 const IP = "localhost";
 //
@@ -10,19 +7,19 @@ const HASH = `1xoiykw9t0a`;
 
 //
 const LOCAL = `http://${IP}:8080`;
-const API = `http://${IP}:7860/`;
+const API = `http://${IP}:7860/`; */
 
 const {
   app,
   BrowserWindow,
   desktopCapturer,
   ipcMain,
-  screen,
   dialog,
 } = require("electron");
 const path = require("path");
 const url = require("url");
 const fs = require("fs");
+let win = null;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -43,51 +40,6 @@ function createWindow() {
   // win.maximize();
 }
 
-function createSecondWindow() {
-  const secondScreen = screen.getAllDisplays()[1]; // Get the second screen
-
-  secondWin = new BrowserWindow({
-    x: secondScreen.bounds.x,
-    y: secondScreen.bounds.y,
-    width: secondScreen.bounds.width,
-    height: secondScreen.bounds.height,
-    webPreferences: {
-      nodeIntegration: true, // Enable Node.js integration in this window
-    },
-  });
-
-  secondWin.loadFile("second.html"); // Replace "second.html" with your HTML file
-  ipcMain.on("request-latest-image", (event, imageDirectory) => {
-    // List all files in the directory
-    fs.readdir(imageDirectory, (err, files) => {
-      if (err) {
-        console.error("Error reading directory:", err);
-        return;
-      }
-
-      // Filter image files with the correct extension (e.g., .jpg)
-      const imageFiles = files.filter((file) => file.endsWith(".jpg"));
-
-      // Sort the image files by timestamp (assuming filenames contain timestamps)
-      imageFiles.sort((a, b) => {
-        const timestampA = parseInt(a.match(/(\d{14})\.jpg/)[1]); // Extract and parse timestamp
-        const timestampB = parseInt(b.match(/(\d{14})\.jpg/)[1]);
-        return timestampB - timestampA; // Sort in descending order
-      });
-
-      // Take the latest image file
-      const latestImage = imageFiles[0];
-
-      if (latestImage) {
-        const imagePath = path.join(imageDirectory, latestImage);
-
-        // Send the latest image path as a reply
-        event.reply("latest-image-reply", imagePath);
-      }
-    });
-  });
-}
-
 app.whenReady().then(() => {
   createWindow();
 
@@ -104,7 +56,7 @@ app.on("window-all-closed", () => {
   }
 });
 
-/* ipcMain.on("screenshot", (event, arg) => {
+ipcMain.on("screenshot", (event, arg) => {
   //Removed window, and left only screen
   desktopCapturer.getSources({ types: ["screen"] }).then(async (sources) => {
     for (const source of sources) {
@@ -115,31 +67,6 @@ app.on("window-all-closed", () => {
       }
     }
   });
-}); */
-
-ipcMain.on("screenshot", async (event, prompt) => {
-  // Send a request to your API to generate the image
-  try {
-    const response = await fetch(`${API}run/predict/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        // other parameters you want to send
-      }),
-    });
-
-    if (response.ok) {
-      const imageData = await response.text();
-      event.sender.send("update-generated-image", imageData);
-    } else {
-      console.error("Error generating image:", response.statusText);
-    }
-  } catch (error) {
-    console.error("Error generating image:", error);
-  }
 });
 
 /* ipcMain.on("save-image", (event, imageData) => {
@@ -169,7 +96,10 @@ ipcMain.on("screenshot", async (event, prompt) => {
 }); */
 ipcMain.on("save-image", (event, imageData) => {
   const base64Data = imageData.replace(/^data:image\/png;base64,/, "");
+
+  // Generate a timestamp to make each file name unique
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
   const fileName = `S:/AI-SCREENSHOT/saved-image-${timestamp}.jpg`;
 
   fs.writeFile(fileName, base64Data, "base64", (err) => {
@@ -177,18 +107,9 @@ ipcMain.on("save-image", (event, imageData) => {
       console.error("Error saving image:", err);
     } else {
       console.log("Image saved successfully:", fileName);
-
-      // Trigger the event to update the second window with the image path
-      event.sender.send("update-second-window-image", fileName); // Use event.sender here
-
-      // Move the ipcMain.emit call here
-      ipcMain.emit("update-second-window-image", fileName);
     }
   });
-
-  // Remove the following line, as the emit should happen inside the callback
-  // ipcMain.emit("update-second-window-image", fileName);
-
+  /* 
   OBJECT_TO_SEND = {
     data: [
       "task(rc9ay8r9o74fcu4)",
@@ -338,18 +259,18 @@ ipcMain.on("save-image", (event, imageData) => {
     // set image
     OBJECT_TO_SEND.data[5] = b64Img;
     // set prompt
-    OBJECT_TO_SEND.data[2] = "analog style camera";
+    OBJECT_TO_SEND.data[2] = prompt;
     // set width
-    OBJECT_TO_SEND.data[23] = parseInt(512);
+    OBJECT_TO_SEND.data[23] = parseInt(width);
     // set height
-    OBJECT_TO_SEND.data[24] = parseInt(512);
+    OBJECT_TO_SEND.data[24] = parseInt(height);
   } else {
     // set prompt
-    OBJECT_TO_SEND.data[1] = "analog style camera";
+    OBJECT_TO_SEND.data[1] = prompt;
     // set width
-    OBJECT_TO_SEND.data[9] = parseInt(512);
+    OBJECT_TO_SEND.data[9] = parseInt(width);
     // set height
-    OBJECT_TO_SEND.data[10] = parseInt(512);
+    OBJECT_TO_SEND.data[10] = parseInt(height);
   }
 
   fetch(`${API}run/predict/`, {
@@ -362,23 +283,5 @@ ipcMain.on("save-image", (event, imageData) => {
     .then((response) => response.json())
     .catch((error) => {
       console.error("Error:", error);
-    });
-});
-
-// Add this event listener in your main process
-ipcMain.on("open-second-window", (event, arg) => {
-  createSecondWindow();
-});
-// Add this code after saving the image in your main process
-ipcMain.on("update-second-window-image", (event, imagePath) => {
-  try {
-    const secondWindow = BrowserWindow.fromWebContents(event.sender);
-    if (secondWindow) {
-      secondWindow.webContents.send("update-generated-image", imagePath);
-    } else {
-      console.error("Second window not found.");
-    }
-  } catch (error) {
-    console.error("Error updating second window:", error);
-  }
+    }); */
 });
