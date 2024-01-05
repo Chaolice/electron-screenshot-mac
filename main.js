@@ -104,7 +104,7 @@ app.on("window-all-closed", () => {
   }
 });
 
-/* ipcMain.on("screenshot", (event, arg) => {
+ipcMain.on("screenshot", (event, arg) => {
   //Removed window, and left only screen
   desktopCapturer.getSources({ types: ["screen"] }).then(async (sources) => {
     for (const source of sources) {
@@ -115,31 +115,6 @@ app.on("window-all-closed", () => {
       }
     }
   });
-}); */
-
-ipcMain.on("screenshot", async (event, prompt) => {
-  // Send a request to your API to generate the image
-  try {
-    const response = await fetch(`${API}run/predict/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        // other parameters you want to send
-      }),
-    });
-
-    if (response.ok) {
-      const imageData = await response.text();
-      event.sender.send("update-generated-image", imageData);
-    } else {
-      console.error("Error generating image:", response.statusText);
-    }
-  } catch (error) {
-    console.error("Error generating image:", error);
-  }
 });
 
 /* ipcMain.on("save-image", (event, imageData) => {
@@ -185,10 +160,13 @@ ipcMain.on("save-image", (event, imageData) => {
       ipcMain.emit("update-second-window-image", fileName);
     }
   });
+  fetchAIGeneratedImage(base64Data, timestamp);
 
   // Remove the following line, as the emit should happen inside the callback
   // ipcMain.emit("update-second-window-image", fileName);
+});
 
+function fetchAIGeneratedImage(base64Data, timestamp) {
   OBJECT_TO_SEND = {
     data: [
       "task(rc9ay8r9o74fcu4)",
@@ -214,8 +192,8 @@ ipcMain.on("save-image", (event, imageData) => {
       1.5,
       0.75,
       null,
-      256,
-      512,
+      250,
+      250,
       1,
       "Crop and resize",
       "Whole picture",
@@ -326,13 +304,13 @@ ipcMain.on("save-image", (event, imageData) => {
     ],
     event_data: null,
     fn_index: 686,
-    session_hash: "1xoiykw9t0a",
+    session_hash: HASH,
   };
   //update the session_hash with the right value
 
   OBJECT_TO_SEND["session_hash"] = HASH;
 
-  if (imageData != "") {
+  if (base64Data != "") {
     const b64Img = base64Data;
     //TATATA à TESTER
     // set image
@@ -340,16 +318,16 @@ ipcMain.on("save-image", (event, imageData) => {
     // set prompt
     OBJECT_TO_SEND.data[2] = "analog style camera";
     // set width
-    OBJECT_TO_SEND.data[23] = parseInt(512);
+    OBJECT_TO_SEND.data[23] = parseInt(250);
     // set height
-    OBJECT_TO_SEND.data[24] = parseInt(512);
+    OBJECT_TO_SEND.data[24] = parseInt(250);
   } else {
     // set prompt
     OBJECT_TO_SEND.data[1] = "analog style camera";
     // set width
-    OBJECT_TO_SEND.data[9] = parseInt(512);
+    OBJECT_TO_SEND.data[9] = parseInt(250);
     // set height
-    OBJECT_TO_SEND.data[10] = parseInt(512);
+    OBJECT_TO_SEND.data[10] = parseInt(250);
   }
 
   fetch(`${API}run/predict/`, {
@@ -360,10 +338,36 @@ ipcMain.on("save-image", (event, imageData) => {
     body: JSON.stringify(OBJECT_TO_SEND),
   })
     .then((response) => response.json())
+    .then((data) => {
+      const imageName = data.data[0][0].name; // Adjust according to actual data structure
+      const imagePath = `${API}file=${imageName}`;
+      const aiFileName = `S:/AI-SCREENSHOT/result/generated-image-${timestamp}.jpg`;
+
+      // Fetch the actual image from the provided path and save it
+      fetch(imagePath)
+        .then((imageResponse) => imageResponse.arrayBuffer())
+        .then((buffer) => {
+          fs.writeFile(aiFileName, Buffer.from(buffer), (err) => {
+            if (err) {
+              console.error("Error saving AI-generated image:", err);
+            } else {
+              console.log("AI-generated image saved successfully:", aiFileName);
+
+              // Update the second window to display the AI-generated image
+              if (secondWin) {
+                secondWin.webContents.send(
+                  "update-generated-image",
+                  aiFileName
+                );
+              }
+            }
+          });
+        });
+    })
     .catch((error) => {
       console.error("Error:", error);
     });
-});
+}
 
 // Add this event listener in your main process
 ipcMain.on("open-second-window", (event, arg) => {
@@ -372,9 +376,8 @@ ipcMain.on("open-second-window", (event, arg) => {
 // Add this code after saving the image in your main process
 ipcMain.on("update-second-window-image", (event, imagePath) => {
   try {
-    const secondWindow = BrowserWindow.fromWebContents(event.sender);
-    if (secondWindow) {
-      secondWindow.webContents.send("update-generated-image", imagePath);
+    if (secondWin) {
+      secondWin.webContents.send("update-generated-image", imagePath);
     } else {
       console.error("Second window not found.");
     }
