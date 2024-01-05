@@ -1,3 +1,4 @@
+//main.js
 const fetch = require("electron-fetch").default;
 
 let win = null;
@@ -44,15 +45,21 @@ function createWindow() {
 }
 
 function createSecondWindow() {
-  const secondScreen = screen.getAllDisplays()[1]; // Get the second screen
+  const displays = screen.getAllDisplays();
+  let secondScreen = displays[1];
 
+  if (!secondScreen) {
+    // Fallback to the primary screen or handle the error
+    console.error("Second screen not found, using primary screen instead.");
+    secondScreen = displays[0];
+  }
   secondWin = new BrowserWindow({
     x: secondScreen.bounds.x,
     y: secondScreen.bounds.y,
     width: secondScreen.bounds.width,
     height: secondScreen.bounds.height,
     webPreferences: {
-      nodeIntegration: true, // Enable Node.js integration in this window
+      preload: path.join(__dirname, "preload.js"), // Path to preload script
     },
   });
 
@@ -70,9 +77,13 @@ function createSecondWindow() {
 
       // Sort the image files by timestamp (assuming filenames contain timestamps)
       imageFiles.sort((a, b) => {
-        const timestampA = parseInt(a.match(/(\d{14})\.jpg/)[1]); // Extract and parse timestamp
-        const timestampB = parseInt(b.match(/(\d{14})\.jpg/)[1]);
-        return timestampB - timestampA; // Sort in descending order
+        const matchA = a.match(/(\d{14})\.jpg/);
+        const matchB = b.match(/(\d{14})\.jpg/);
+
+        const timestampA = matchA ? parseInt(matchA[1]) : 0;
+        const timestampB = matchB ? parseInt(matchB[1]) : 0;
+
+        return timestampB - timestampA;
       });
 
       // Take the latest image file
@@ -80,12 +91,22 @@ function createSecondWindow() {
 
       if (latestImage) {
         const imagePath = path.join(imageDirectory, latestImage);
+        console.log("Latest image path:", imagePath);
 
         // Send the latest image path as a reply
         event.reply("latest-image-reply", imagePath);
       }
     });
   });
+  setInterval(() => {
+    if (secondWin) {
+      secondWin.webContents.send(
+        "request-latest-image",
+        "S:/AI-SCREENSHOT/result"
+      );
+    }
+    console.log("request-latest-image");
+  }, 5000);
 }
 
 app.whenReady().then(() => {
@@ -108,8 +129,8 @@ ipcMain.on("screenshot", (event, arg) => {
   //Removed window, and left only screen
   desktopCapturer.getSources({ types: ["screen"] }).then(async (sources) => {
     for (const source of sources) {
-      console.log(source);
-      if (source.name === "Screen 1") {
+      /*       console.log(source);
+       */ if (source.name === "Screen 1") {
         win.webContents.send("SET_SOURCE", source.id);
         return;
       }
@@ -181,7 +202,7 @@ function fetchAIGeneratedImage(base64Data, timestamp) {
       null,
       null,
       null,
-      20,
+      2,
       "DPM++ 2M Karras",
       4,
       0,
@@ -374,7 +395,7 @@ ipcMain.on("open-second-window", (event, arg) => {
   createSecondWindow();
 });
 // Add this code after saving the image in your main process
-ipcMain.on("update-second-window-image", (event, imagePath) => {
+/* ipcMain.on("update-second-window-image", (event, imagePath) => {
   try {
     if (secondWin) {
       secondWin.webContents.send("update-generated-image", imagePath);
@@ -384,4 +405,4 @@ ipcMain.on("update-second-window-image", (event, imagePath) => {
   } catch (error) {
     console.error("Error updating second window:", error);
   }
-});
+}); */

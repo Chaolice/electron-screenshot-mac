@@ -1,4 +1,6 @@
-const { ipcRenderer } = require("electron");
+//preload.js
+
+const { contextBridge, ipcRenderer } = require("electron");
 
 window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("screenshot").addEventListener("click", (e) => {
@@ -64,4 +66,27 @@ document.addEventListener("DOMContentLoaded", () => {
       ipcRenderer.send("open-second-window");
     });
   }
+  ipcRenderer.on("update-generated-image", (event, imagePath) => {
+    const imageElement = document.getElementById("generated-image");
+    if (imageElement) {
+      imageElement.src = imagePath + "?nocache=" + Date.now(); // Cache busting
+    }
+  });
+});
+
+contextBridge.exposeInMainWorld("electron", {
+  send: (channel, data) => {
+    // whitelist channels
+    let validChannels = ["request-latest-image", "another-channel"];
+    if (validChannels.includes(channel)) {
+      ipcRenderer.send(channel, data);
+    }
+  },
+  receive: (channel, func) => {
+    let validChannels = ["latest-image-reply", "another-channel"];
+    if (validChannels.includes(channel)) {
+      // Deliberately strip event as it includes `sender`
+      ipcRenderer.on(channel, (event, ...args) => func(...args));
+    }
+  },
 });
