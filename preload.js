@@ -59,13 +59,6 @@ function handleError(e) {
 
 // Add this event listener in your preload.js
 document.addEventListener("DOMContentLoaded", () => {
-  const openSecondWindowButton = document.getElementById("open-second-window");
-
-  if (openSecondWindowButton) {
-    openSecondWindowButton.addEventListener("click", () => {
-      ipcRenderer.send("open-second-window");
-    });
-  }
   ipcRenderer.on("update-generated-image", (event, imagePath) => {
     const imageElement = document.getElementById("generated-image");
     if (imageElement) {
